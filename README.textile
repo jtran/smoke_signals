@@ -1,0 +1,27 @@
+h1. SmokeSignals
+
+SmokeSignals is an implementation of Lisp-style conditions and restarts as a Ruby library.  If you're unfamiliar with conditions and restarts, check out the chapter from "Practical Common Lisp":http://www.gigamonkeys.com/book/beyond-exception-handling-conditions-and-restarts.html.
+
+SmokeSignals is different because:
+
+* conditions are not errors (although they can be)
+* signaling a condition does not unravel the stack (although it can)
+* conditions can be handled multiple times at different levels of the call stack (or not at all)
+* restarts can be established at any level in the call stack, not just where the condition is signaled
+* implementation of signaling, handling, and restarting is completely hidden, so you don't have to remember to re-raise or anything special at the right moment to make it work
+
+h2. Usage
+
+See the tests.  Usage may change as I discover better syntax.
+
+h2. Requirements
+
+Ruby 1.8.6, 1.8.7, or 1.9.2 that supports continuations with @callcc@.
+
+h2. Running Tests
+
+pre. ruby test/smoke_signals_test.rb
+
+h2. Special Thanks
+
+This was inspired in part by dynamic_vars:https://github.com/robdimarco/dynamic_vars, an implementation of thread-local dynamic bindings in Ruby!
