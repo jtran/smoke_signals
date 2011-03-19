@@ -24,4 +24,4 @@ pre. ruby test/smoke_signals_test.rb
 
 h2. Special Thanks
 
-This was inspired in part by dynamic_vars:https://github.com/robdimarco/dynamic_vars, an implementation of thread-local dynamic bindings in Ruby!
+This was inspired in part by "dynamic_vars":https://github.com/robdimarco/dynamic_vars, an implementation of thread-local dynamic bindings in Ruby!
