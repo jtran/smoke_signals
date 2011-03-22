@@ -1,5 +1,3 @@
-require 'continuation' unless defined?(callcc)
-
 module SmokeSignals
 
   class UnhandledSignalError < RuntimeError
@@ -16,6 +14,19 @@ module SmokeSignals
     end
   end
 
+  # You should never rescue this exception in normal usage.  If you
+  # do, you should re-raise it.  It is raised to allow ensure blocks
+  # to execute as you would expect.  Normally, you should not be
+  # rescuing Exception anyway, without re-raising it.  A bare rescue
+  # only rescues StandardError, a subclass of Exception.
+  class RollbackException < Exception
+    attr_reader :nonce, :return_value
+    def initialize(nonce, return_value)
+      @nonce = nonce
+      @return_value = return_value
+    end
+  end
+
   class Extensible
     def metaclass
       class << self; self; end
@@ -24,7 +35,7 @@ module SmokeSignals
 
   class Condition
 
-    attr_accessor :rescue_cont
+    attr_accessor :nonce
 
     def signal
       Condition.signal(self, false)
@@ -34,8 +45,8 @@ module SmokeSignals
       Condition.signal(self, true)
     end
 
-    def rescue(*return_value)
-      self.rescue_cont.call(*return_value)
+    def rescue(return_value)
+      raise RollbackException.new(self.nonce, return_value)
     end
 
     def restart(name, *args)
@@ -46,12 +57,15 @@ module SmokeSignals
 
       def handle(new_handlers, &block)
         orig_handlers = handlers
+        nonce = Object.new
+        self.handlers = orig_handlers + new_handlers.map {|k,v| [k,v,nonce] }.reverse
         begin
-          callcc do |cont|
-            # First handler goes on top of the stack so it will be signaled
-            # first.
-            self.handlers = orig_handlers + new_handlers.map {|k,v| [k,v,cont] }.reverse
-            block.call
+          block.call
+        rescue RollbackException => e
+          if nonce.equal?(e.nonce)
+            e.return_value
+          else
+            raise e
           end
         ensure
           self.handlers = orig_handlers
@@ -60,7 +74,7 @@ module SmokeSignals
 
       def signal(c, raise_unless_handled)
         # Most recently set handlers are run first.
-        handlers.reverse_each do |applies_to, handler_fn, cont|
+        handlers.reverse_each do |applies_to, handler_fn, nonce|
           # Check if the condition being signaled applies to this
           # handler.
           applies = case applies_to
@@ -73,7 +87,7 @@ module SmokeSignals
                     end
           next unless applies
 
-          c.rescue_cont = cont
+          c.nonce = nonce
           handler_fn.call(c)
         end
         raise UnhandledSignalError.new(c) if raise_unless_handled
@@ -81,16 +95,22 @@ module SmokeSignals
 
       def with_restarts(extension, &block)
         orig_restarts = restarts
+        nonce = Object.new
         if extension.is_a?(Proc)
           new_restarts = Extensible.new
           new_restarts.metaclass.instance_eval { include Module.new(&extension) }
         else
           new_restarts = extension
         end
+
+        self.restarts = orig_restarts + [[new_restarts,nonce]]
         begin
-          callcc do |cont|
-            self.restarts = orig_restarts + [[new_restarts,cont]]
-            block.call
+          block.call
+        rescue RollbackException => e
+          if nonce.equal?(e.nonce)
+            e.return_value
+          else
+            raise e
           end
         ensure
           self.restarts = orig_restarts
@@ -98,7 +118,7 @@ module SmokeSignals
       end
 
       def restart(name, *args)
-        restarts.reverse_each do |restarts_obj,cont|
+        restarts.reverse_each do |restarts_obj, nonce|
           obj, all_args = case restarts_obj
                           when Extensible
                             restarts_obj.respond_to?(name) ? [restarts_obj, [name] + args] : nil
@@ -107,7 +127,7 @@ module SmokeSignals
                             fn ? [fn, [:call] + args] : nil
                           end
           next unless obj
-          cont.call(obj.send(*all_args))
+          raise RollbackException.new(nonce, obj.send(*all_args))
         end
         raise NoRestartError.new(name)
       end

@@ -1,4 +1,5 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
+require 'tempfile'
 
 class SmokeSignalsTest < Test::Unit::TestCase
 
@@ -109,6 +110,81 @@ class SmokeSignalsTest < Test::Unit::TestCase
     assert_equal [16, 4], b
     assert_equal [], C.class_eval { handlers }
     assert_equal [], C.class_eval { restarts }
+  end
+
+  def test_rescuing_executes_ensure_block
+    a = []
+    file = nil
+    r = C.handle(C => lambda {|c| a << 7; c.rescue(42) }) do
+      begin
+        file = Tempfile.new('smoke_signals_test')
+        C.new.signal
+        fail 'should be handled with a rescue'
+      ensure
+        file.close
+      end
+    end
+    assert_equal 42, r
+    assert file.closed?
+  ensure
+    if file
+      file.close
+      file.unlink
+    end
+  end
+
+  def test_restarting_executes_ensure_block
+    a = []
+    file = nil
+    r = C.handle(C => lambda {|c| C.restart(:use_value, 42) }) do
+      C.with_restarts(:use_value => lambda {|v| v }) do
+        begin
+          file = Tempfile.new('smoke_signals_test')
+          C.new.signal
+          fail 'should be handled with a restart'
+        ensure
+          file.close
+        end
+      end
+    end
+    assert_equal 42, r
+    assert file.closed?
+  ensure
+    if file
+      file.close
+      file.unlink
+    end
+  end
+
+  def test_rescuing_from_nested_handlers
+    a = []
+    r = C.handle(C => lambda {|c| a << 3; c.rescue(42) }) do
+      C.handle(String => lambda {|c| a << 4; c.rescue(5) }) do
+        C.new.signal!
+      end
+      fail 'should be handled with a rescue'
+    end
+    assert_equal 42, r
+    assert_equal [3], a
+  end
+
+  def test_restarting_from_nested_restarts
+    a = []
+    r = C.handle(C => lambda {|c| a << 3; C.restart(:use_value, 42) }) do
+      r2 = C.with_restarts(:use_value => lambda {|v| a << 4; v }) do
+        C.with_restarts(:use_square_of_value => lambda {|v| a << 5; v * v }) do
+          C.new.signal!
+          fail 'should be handled with a restart'
+        end
+        fail 'should be handled with a restart'
+      end
+      assert_equal [3, 4], a
+      assert_equal 42, r2
+      a << 6
+      7
+    end
+    assert_equal [3, 4, 6], a
+    assert_equal 7, r
   end
 
 end

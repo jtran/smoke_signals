@@ -8,7 +8,7 @@ SmokeSignals is different because:
 * signaling a condition does not unravel the stack (although it can)
 * conditions can be handled multiple times at different levels of the call stack (or not at all)
 * restarts can be established at any level in the call stack, not just where the condition is signaled
-* implementation of signaling, handling, and restarting is completely hidden, so you don't have to remember to re-raise or anything special at the right moment to make it work
+* implementation of signaling, handling, and restarting is completely hidden. (The only possible exception to this is a design decision which allows @ensure@ blocks to work, making this usable with real side-effectful programs.)
 
 h2. Usage
 
@@ -16,7 +16,7 @@ See the tests.  Usage may change as I discover better syntax.
 
 h2. Requirements
 
-Ruby 1.8.6, 1.8.7, or 1.9.2 that supports continuations with @callcc@.
+Ruby 1.8 or 1.9.  No other gem dependencies.
 
 h2. Running Tests
 
