@@ -18,6 +18,10 @@ h2. Requirements
 
 Ruby 1.8 or 1.9.  No other gem dependencies.
 
+h2. Thread Safety
+
+This library is thread-safe because each thread has its own handlers and restarts.  You cannot signal in one thread and handle it in another thread.
+
 h2. Running Tests
 
 pre. ruby test/smoke_signals_test.rb

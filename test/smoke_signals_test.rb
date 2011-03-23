@@ -187,4 +187,20 @@ class SmokeSignalsTest < Test::Unit::TestCase
     assert_equal 7, r
   end
 
+  def test_handle_in_multiple_threads
+    C.handle(C => lambda {|c| 7 }) do
+      t = Thread.new { assert_equal [], C.class_eval { handlers } }
+      assert_equal 1, C.class_eval { handlers.size }
+      t.join
+    end
+  end
+
+  def test_restart_in_multiple_threads
+    C.with_restarts(:use_value => lambda {|v| v }) do
+      t = Thread.new { assert_equal [], C.class_eval { restarts } }
+      assert_equal 1, C.class_eval { restarts.size }
+      t.join
+    end
+  end
+
 end
