@@ -53,12 +53,33 @@ module SmokeSignals
       Condition.restart(name, *args)
     end
 
+    def handle_by(handler)
+      if handler.is_a?(Proc)
+        # No pattern given, so handler applies to everything.
+        handler
+      else
+        applies_to, handler_fn = handler
+        applies = case applies_to
+                  when Proc
+                    applies_to.call(self)
+                  when Array
+                    applies_to.any? {|a| a === self }
+                  else
+                    applies_to === self
+                  end
+        applies ? handler_fn : nil
+      end
+    end
+
     class << self
 
-      def handle(new_handlers, &block)
+      def handle(*new_handlers, &block)
         orig_handlers = handlers
         nonce = Object.new
-        self.handlers = orig_handlers + new_handlers.map {|k,v| [k,v,nonce] }.reverse
+        if new_handlers.last.is_a?(Hash)
+          new_handlers.pop.reverse_each {|entry| new_handlers.push(entry) }
+        end
+        self.handlers = orig_handlers + new_handlers.map {|entry| [entry,nonce] }.reverse
         begin
           block.call
         rescue RollbackException => e
@@ -74,18 +95,11 @@ module SmokeSignals
 
       def signal(c, raise_unless_handled)
         # Most recently set handlers are run first.
-        handlers.reverse_each do |applies_to, handler_fn, nonce|
+        handlers.reverse_each do |handler, nonce|
           # Check if the condition being signaled applies to this
           # handler.
-          applies = case applies_to
-                    when Proc
-                      applies_to.call(c)
-                    when Array
-                      applies_to.any? {|a| a === c }
-                    else
-                      applies_to === c
-                    end
-          next unless applies
+          handler_fn = c.handle_by(handler)
+          next unless handler_fn
 
           c.nonce = nonce
           handler_fn.call(c)

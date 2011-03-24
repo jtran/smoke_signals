@@ -22,7 +22,7 @@ class SmokeSignalsTest < Test::Unit::TestCase
   end
 
   def test_handle_condition
-    r = C.handle(C => lambda {|c| c.rescue(42) }) do
+    r = C.handle(lambda {|c| c.rescue(42) }) do
       C.new.signal!
     end
     assert_equal 42, r
@@ -31,8 +31,8 @@ class SmokeSignalsTest < Test::Unit::TestCase
 
   def test_handle_condition_multiple_times
     a = []
-    r = C.handle(C => lambda {|c| a << 8; c.rescue(42) }) do
-      C.handle(C => lambda {|c| a << 7 }) do
+    r = C.handle(lambda {|c| a << 8; c.rescue(42) }) do
+      C.handle(lambda {|c| a << 7 }) do
         C.new.signal!
       end
     end
@@ -55,14 +55,14 @@ class SmokeSignalsTest < Test::Unit::TestCase
 
   def test_unestablished_restart_raises
     assert_raise SmokeSignals::NoRestartError do
-      C.handle(C => lambda {|c| C.restart(:some_restart_name) }) do
+      C.handle(lambda {|c| C.restart(:some_restart_name) }) do
         C.new.signal!
       end
     end
   end
 
   def test_restart_with_hash
-    r = C.handle(C => lambda {|c| C.restart(:use_square_of_value, 4) }) do
+    r = C.handle(lambda {|c| C.restart(:use_square_of_value, 4) }) do
       r2 = C.with_restarts(:use_square_of_value => lambda {|v| v * v }) do
         C.new.signal!
       end
@@ -75,7 +75,7 @@ class SmokeSignalsTest < Test::Unit::TestCase
   end
 
   def test_restart_with_proc
-    r = C.handle(C => lambda {|c| C.restart(:use_square_of_value, 4) }) do
+    r = C.handle(lambda {|c| C.restart(:use_square_of_value, 4) }) do
       r2 = C.with_restarts(proc {
                              def use_square_of_value(v)
                                v * v
@@ -99,7 +99,7 @@ class SmokeSignalsTest < Test::Unit::TestCase
     a = [:use_square_of_value, :use_value]
     b = []
     a.each do |name|
-      C.handle(C => lambda {|c| C.restart(name, 4) }) do
+      C.handle(lambda {|c| C.restart(name, 4) }) do
         r = C.with_restarts(:use_square_of_value => lambda {|v| v * v },
                             :use_value           => lambda {|v| v }) do
           C.new.signal!
@@ -115,7 +115,7 @@ class SmokeSignalsTest < Test::Unit::TestCase
   def test_rescuing_executes_ensure_block
     a = []
     file = nil
-    r = C.handle(C => lambda {|c| a << 7; c.rescue(42) }) do
+    r = C.handle(lambda {|c| a << 7; c.rescue(42) }) do
       begin
         file = Tempfile.new('smoke_signals_test')
         C.new.signal
@@ -136,7 +136,7 @@ class SmokeSignalsTest < Test::Unit::TestCase
   def test_restarting_executes_ensure_block
     a = []
     file = nil
-    r = C.handle(C => lambda {|c| C.restart(:use_value, 42) }) do
+    r = C.handle(lambda {|c| C.restart(:use_value, 42) }) do
       C.with_restarts(:use_value => lambda {|v| v }) do
         begin
           file = Tempfile.new('smoke_signals_test')
@@ -170,7 +170,7 @@ class SmokeSignalsTest < Test::Unit::TestCase
 
   def test_restarting_from_nested_restarts
     a = []
-    r = C.handle(C => lambda {|c| a << 3; C.restart(:use_value, 42) }) do
+    r = C.handle(lambda {|c| a << 3; C.restart(:use_value, 42) }) do
       r2 = C.with_restarts(:use_value => lambda {|v| a << 4; v }) do
         C.with_restarts(:use_square_of_value => lambda {|v| a << 5; v * v }) do
           C.new.signal!
@@ -188,7 +188,7 @@ class SmokeSignalsTest < Test::Unit::TestCase
   end
 
   def test_handle_in_multiple_threads
-    C.handle(C => lambda {|c| 7 }) do
+    C.handle(lambda {|c| 7 }) do
       t = Thread.new { assert_equal [], C.class_eval { handlers } }
       assert_equal 1, C.class_eval { handlers.size }
       t.join
