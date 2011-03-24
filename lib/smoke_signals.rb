@@ -3,6 +3,7 @@ module SmokeSignals
   class UnhandledSignalError < RuntimeError
     attr_accessor :condition
     def initialize(condition)
+      super('condition was not rescued or restarted by any handlers')
       self.condition = condition
     end
   end
@@ -10,6 +11,7 @@ module SmokeSignals
   class NoRestartError < RuntimeError
     attr_accessor :restart_name
     def initialize(restart_name)
+      super("no established restart with name: #{restart_name}")
       self.restart_name = restart_name
     end
   end
