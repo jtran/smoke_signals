@@ -32,8 +32,9 @@ In a mid-level function, implement ways to recover from the condition.  This is 
       SmokeSignals::Condition.with_restarts(:ignore_entry => lambda { nil },
                                             :use_value => lambda {|v| v } ) do
         parse_entry(line)
-    end
-  }.compact
+      end
+    }.compact
+  end
 end
 </code></pre>
 
