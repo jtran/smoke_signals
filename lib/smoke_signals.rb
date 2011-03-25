@@ -47,7 +47,7 @@ module SmokeSignals
       Condition.signal(self, true)
     end
 
-    def rescue(return_value)
+    def rescue(return_value=nil)
       raise RollbackException.new(self.nonce, return_value)
     end
 
