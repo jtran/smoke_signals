@@ -10,9 +10,84 @@ SmokeSignals is different because:
 * restarts can be established at any level in the call stack, not just where the condition is signaled
 * implementation of signaling, handling, and restarting is completely hidden. (The only possible exception to this is a design decision which allows @ensure@ blocks to work, making this usable with real side-effectful programs.)
 
+h2. Installation
+
+Gem coming soon, as soon as I stabilize the syntax.
+
 h2. Usage
 
-See the tests.  Usage may change as I discover better syntax.
+In a low-level function, signal a condition.
+
+<pre><code>def parse_entry(line)
+  SmokeSignals::Condition.new.signal! unless satisfies_preconditions?(line)
+  # Do actual parsing...
+end
+</code></pre>
+
+In a mid-level function, implement ways to recover from the condition.  This is the mechanism of recovery that is tied to the implementation of the mid-level function.
+
+<pre><code>def parse_log_file(filename)
+  File.open(filename) do |io|
+    io.lines.map {|line|
+      SmokeSignals::Condition.with_restarts(:ignore_entry => lambda { nil },
+                                            :use_value => lambda {|v| v } ) do
+        parse_entry(line)
+    end
+  }.compact
+end
+</code></pre>
+
+In a high-level function, handle the condition.  This sets the policy of recovery without being exposed to the underlying implementation of the mid-level function.
+
+<pre><code>def analyze_log_file(filename)
+  entries = SmokeSignals::Condition.handle(lambda {|c| c.restart(:ignore_entry) }) do
+    parse_log_file(filename)
+  end
+  # Do something interesting with entries...
+end
+</code></pre>
+
+Signaling a condition does not have to be fatal.
+
+<pre><code># If no handlers are set, this will do nothing.
+SmokeSignals::Condition.new.signal
+</code></pre>
+
+The bang flavor will raise unless it is rescued or restarted.
+
+<pre><code># This is a fatal signal.
+SmokeSignals::Condition.new.signal!
+</code></pre>
+
+Since you can handle signals multiple times by different handlers at multiple levels in the call stack, simply handling a fatal signal and returning normally is not enough.  You must either rescue it or restart it.
+
+Rescuing a condition is just like rescuing an exception with a @rescue@ block.  It returns the value from the entire @handle@ block.
+
+<pre><code>x = SmokeSignals::Condition.handle(lambda {|c| c.rescue(42) }) do
+  SmokeSignals::Condition.new.signal!
+end
+# x is 42
+</code></pre>
+
+If you were using exceptions, you might've done this...
+
+<pre><code>x = begin
+  raise 'foo'
+rescue
+  42
+end
+# x is 42
+</code></pre>
+
+You can limit which kinds of conditions you handle by passing a hash to @handle@.
+
+<pre><code>class MyCondition < SmokeSignals::Condition; end
+
+# This will only handle MyCondition signals.
+SmokeSignals::Condition.handle(MyCondition => lambda {|c| c.restart(:some_restart) }) do
+  # Stuff that signals...
+end
+</code></pre>
 
 h2. Requirements
 
@@ -24,7 +99,7 @@ This library is thread-safe because each thread has its own handlers and restart
 
 h2. Running Tests
 
-pre. ruby test/smoke_signals_test.rb
+<pre><code>ruby test/smoke_signals_test.rb</code></pre>
 
 h2. Special Thanks
 
