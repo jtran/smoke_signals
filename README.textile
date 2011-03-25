@@ -90,6 +90,25 @@ SmokeSignals::Condition.handle(MyCondition => lambda {|c| c.restart(:some_restar
 end
 </code></pre>
 
+In the case of an @ensure@ block, it is executed _after_ any handlers.  It must be executed afterwards because the whole point of signal handlers is that they are run _before_ the stack is unwound.  At that point, a signal handler may choose to rescue, restart, or return normally to allow other handlers to execute.  On the other hand, by the time an exception is caught, rescuing is not an option; it's a necessity.
+
+<pre><code>begin
+  file = Tempfile.new('test')
+  SmokeSignals::Condition.new.signal
+  puts 'If we are here, the signal may have been handled, but it was not rescued and not restarted.'
+ensure
+  file.close
+end
+</code></pre>
+
+h3. Is SmokeSignals a replacement for Ruby exceptions?
+
+Short answer: no, they're an extension.
+
+Long answer... As shown above, you can achieve all the functionality of exceptions with SmokeSignals.
+
+However, you're probably using some code that doesn't know about SmokeSignals and raises exceptions instead.  Setting a condition handler will not handle these raised exceptions.  They couldn't because in such a case, restarting would be impossible.  By the time an exception is rescued, the stack has already been unwound.
+
 h2. Requirements
 
 Ruby 1.8 or 1.9.  No other gem dependencies.
