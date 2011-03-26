@@ -1,4 +1,4 @@
-module SmokeSignals
+class SmokeSignals
 
   class UnhandledSignalError < RuntimeError
     attr_accessor :condition
@@ -60,11 +60,11 @@ module SmokeSignals
     attr_accessor :nonce
 
     def signal
-      Condition.signal(self, false)
+      SmokeSignals.signal(self, false)
     end
 
     def signal!
-      Condition.signal(self, true)
+      SmokeSignals.signal(self, true)
     end
 
     def rescue(return_value=nil)
@@ -72,7 +72,7 @@ module SmokeSignals
     end
 
     def restart(name, *args)
-      Condition.restart(name, *args)
+      SmokeSignals.restart(name, *args)
     end
 
     def handle_by(handler)
@@ -93,99 +93,99 @@ module SmokeSignals
       end
     end
 
-    class << self
+  end
 
-      def handle(*new_handlers, &block)
-        orig_handlers = handlers
-        nonce = Object.new
-        if new_handlers.last.is_a?(Hash)
-          new_handlers.pop.reverse_each {|entry| new_handlers.push(entry) }
-        end
-        self.handlers = orig_handlers + new_handlers.map {|entry| [entry,nonce] }.reverse
-        begin
-          block.call
-        rescue RescueException => e
-          if nonce.equal?(e.nonce)
-            e.return_value
-          else
-            raise e
-          end
-        ensure
-          self.handlers = orig_handlers
-        end
+  class << self
+
+    def handle(*new_handlers, &block)
+      orig_handlers = handlers
+      nonce = Object.new
+      if new_handlers.last.is_a?(Hash)
+        new_handlers.pop.reverse_each {|entry| new_handlers.push(entry) }
       end
-
-      def signal(c, raise_unless_handled)
-        # Most recently set handlers are run first.
-        handlers.reverse_each do |handler, nonce|
-          # Check if the condition being signaled applies to this
-          # handler.
-          handler_fn = c.handle_by(handler)
-          next unless handler_fn
-
-          c.nonce = nonce
-          handler_fn.call(c)
-        end
-        raise UnhandledSignalError.new(c) if raise_unless_handled
-      end
-
-      def with_restarts(extension, &block)
-        orig_restarts = restarts
-        nonce = Object.new
-        if extension.is_a?(Proc)
-          new_restarts = Extensible.new
-          new_restarts.metaclass.instance_eval { include Module.new(&extension) }
+      self.handlers = orig_handlers + new_handlers.map {|entry| [entry,nonce] }.reverse
+      begin
+        block.call
+      rescue RescueException => e
+        if nonce.equal?(e.nonce)
+          e.return_value
         else
-          new_restarts = extension
+          raise e
         end
+      ensure
+        self.handlers = orig_handlers
+      end
+    end
 
-        self.restarts = orig_restarts + [[new_restarts,nonce]]
-        begin
-          block.call
-        rescue RestartException => e
-          if nonce.equal?(e.nonce)
-            e.restart_receiver.send(*e.restart_args)
-          else
-            raise e
-          end
-        ensure
-          self.restarts = orig_restarts
+    def signal(c, raise_unless_handled)
+      # Most recently set handlers are run first.
+      handlers.reverse_each do |handler, nonce|
+        # Check if the condition being signaled applies to this
+        # handler.
+        handler_fn = c.handle_by(handler)
+        next unless handler_fn
+
+        c.nonce = nonce
+        handler_fn.call(c)
+      end
+      raise UnhandledSignalError.new(c) if raise_unless_handled
+    end
+
+    def with_restarts(extension, &block)
+      orig_restarts = restarts
+      nonce = Object.new
+      if extension.is_a?(Proc)
+        new_restarts = Extensible.new
+        new_restarts.metaclass.instance_eval { include Module.new(&extension) }
+      else
+        new_restarts = extension
+      end
+
+      self.restarts = orig_restarts + [[new_restarts,nonce]]
+      begin
+        block.call
+      rescue RestartException => e
+        if nonce.equal?(e.nonce)
+          e.restart_receiver.send(*e.restart_args)
+        else
+          raise e
         end
+      ensure
+        self.restarts = orig_restarts
       end
+    end
 
-      def restart(name, *args)
-        restarts.reverse_each do |restarts_obj, nonce|
-          obj, all_args = case restarts_obj
-                          when Extensible
-                            restarts_obj.respond_to?(name) ? [restarts_obj, [name] + args] : nil
-                          else
-                            fn = restarts_obj[name]
-                            fn ? [fn, [:call] + args] : nil
-                          end
-          next unless obj
-          raise RestartException.new(nonce, obj, all_args)
-        end
-        raise NoRestartError.new(name)
+    def restart(name, *args)
+      restarts.reverse_each do |restarts_obj, nonce|
+        obj, all_args = case restarts_obj
+                        when Extensible
+                          restarts_obj.respond_to?(name) ? [restarts_obj, [name] + args] : nil
+                        else
+                          fn = restarts_obj[name]
+                          fn ? [fn, [:call] + args] : nil
+                        end
+        next unless obj
+        raise RestartException.new(nonce, obj, all_args)
       end
+      raise NoRestartError.new(name)
+    end
 
-      private
+    private
 
-      def handlers
-        Thread.current[:ConditionHandlers] ||= []
-      end
+    def handlers
+      Thread.current[:ConditionHandlers] ||= []
+    end
 
-      def handlers=(arr)
-        Thread.current[:ConditionHandlers] = arr
-      end
+    def handlers=(arr)
+      Thread.current[:ConditionHandlers] = arr
+    end
 
-      def restarts
-        Thread.current[:ConditionRestarts] ||= []
-      end
+    def restarts
+      Thread.current[:ConditionRestarts] ||= []
+    end
 
-      def restarts=(arr)
-        Thread.current[:ConditionRestarts] = arr
-      end
-
+    def restarts=(arr)
+      Thread.current[:ConditionRestarts] = arr
     end
 
   end

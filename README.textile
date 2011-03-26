@@ -29,8 +29,8 @@ In a mid-level function, implement ways to recover from the condition.  This is 
 <pre><code>def parse_log_file(filename)
   File.open(filename) do |io|
     io.lines.map {|line|
-      SmokeSignals::Condition.with_restarts(:ignore_entry => lambda { nil },
-                                            :use_value => lambda {|v| v } ) do
+      SmokeSignals.with_restarts(:ignore_entry => lambda { nil },
+                                 :use_value => lambda {|v| v } ) do
         parse_entry(line)
       end
     }.compact
@@ -41,7 +41,7 @@ end
 In a high-level function, handle the condition.  This sets the policy of recovery without being exposed to the underlying implementation of the mid-level function.
 
 <pre><code>def analyze_log_file(filename)
-  entries = SmokeSignals::Condition.handle(lambda {|c| c.restart(:ignore_entry) }) do
+  entries = SmokeSignals.handle(lambda {|c| c.restart(:ignore_entry) }) do
     parse_log_file(filename)
   end
   # Do something interesting with entries...
@@ -64,7 +64,7 @@ Since you can handle signals multiple times by different handlers at multiple le
 
 Rescuing a condition is just like rescuing an exception with a @rescue@ block.  It returns the value from the entire @handle@ block.
 
-<pre><code>x = SmokeSignals::Condition.handle(lambda {|c| c.rescue(42) }) do
+<pre><code>x = SmokeSignals.handle(lambda {|c| c.rescue(42) }) do
   SmokeSignals::Condition.new.signal!
 end
 # x is 42
@@ -85,8 +85,8 @@ You can limit which kinds of conditions you handle by passing a hash to @handle@
 <pre><code>class MyCondition1 < SmokeSignals::Condition; end
 class MyCondition2 < SmokeSignals::Condition; end
 
-SmokeSignals::Condition.handle(MyCondition1 => lambda {|c| c.restart(:some_restart),
-                               MyCondition2 => lambda {|c| c.restart(:another_restart) }) do }) do
+SmokeSignals.handle(MyCondition1 => lambda {|c| c.restart(:some_restart),
+                    MyCondition2 => lambda {|c| c.restart(:another_restart) }) do }) do
   # Stuff that signals...
 end
 </code></pre>
@@ -95,8 +95,8 @@ By default @MyCondition1 === condition that was signaled@ is used to determine w
 
 You can handle a signal multiple times by returning normally from your handler.  Doing this you can, for example, observe the fact that a condition has been signaled without otherwise having any effect on control flow.
 
-<pre><code>SmokeSignals::Condition.handle(lambda {|c| puts 'this is run 2nd' }) do
-  SmokeSignals::Condition.handle(lambda {|c| puts 'this is run 1st' }) do
+<pre><code>SmokeSignals.handle(lambda {|c| puts 'this is run 2nd' }) do
+  SmokeSignals.handle(lambda {|c| puts 'this is run 1st' }) do
     begin
       SmokeSignals::Condition.new.signal
       puts 'this is run 3rd because no handlers called rescue or restart'
@@ -107,8 +107,8 @@ end
 
 In the case of an @ensure@ block, it is executed _after_ any handlers.  It must be executed afterwards because the whole point of signal handlers is that they are run _before_ the stack is unwound.  At that point, a signal handler may choose to rescue, restart, or return normally to allow other handlers to execute.  In contrast, by the time an exception is caught, rescuing is not an option; it's a necessity.
 
-<pre><code>SmokeSignals::Condition.handle(lambda {|c| puts 'this is run 2nd' }) do
-  SmokeSignals::Condition.handle(lambda {|c| puts 'this is run 1st' }) do
+<pre><code>SmokeSignals.handle(lambda {|c| puts 'this is run 2nd' }) do
+  SmokeSignals.handle(lambda {|c| puts 'this is run 1st' }) do
     begin
       SmokeSignals::Condition.new.signal
       puts 'this is run 3rd because no handlers called rescue or restart'
@@ -122,7 +122,7 @@ end
 @ensure@ blocks are executed after handlers, but they are executed _before_ restarts.  To see why this design decision was made, consider this example.
 
 <pre><code>def parse_file(filename)
-  SmokeSignals::Condition.with_restarts(:use_new_filename => lambda {|f| parse_file(f) }) do
+  SmokeSignals.with_restarts(:use_new_filename => lambda {|f| parse_file(f) }) do
     file = nil
     begin
       file = File.open(filename)
