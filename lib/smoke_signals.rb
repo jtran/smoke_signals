@@ -16,16 +16,36 @@ module SmokeSignals
     end
   end
 
-  # You should never rescue this exception in normal usage.  If you
-  # do, you should re-raise it.  It is raised to allow ensure blocks
-  # to execute as you would expect.  Normally, you should not be
-  # rescuing Exception anyway, without re-raising it.  A bare rescue
-  # only rescues StandardError, a subclass of Exception.
-  class RollbackException < Exception
-    attr_reader :nonce, :return_value
-    def initialize(nonce, return_value)
+  # You should never rescue this exception or any of its subclasses in
+  # normal usage.  If you do, you should re-raise it.  It is raised to
+  # unwind the stack and allow ensure blocks to execute as you would
+  # expect.  Normally, you should not be rescuing Exception, anyway,
+  # without re-raising it.  A bare rescue only rescues StandardError,
+  # a subclass of Exception, which is probably what you want.
+  class StackUnwindException < Exception
+    attr_reader :nonce
+    def initialize(nonce)
+      super("This exception is an implementation detail of SmokeSignals.  If you're seeing this, either there is a bug in SmokeSignals or you are rescuing a #{self.class} when you shouldn't be.  If you rescue this, you should re-raise it.")
       @nonce = nonce
+    end
+  end
+
+  # You should never rescue this exception.  See StackUnwindException.
+  class RescueException < StackUnwindException
+    attr_reader :return_value
+    def initialize(nonce, return_value)
+      super(nonce)
       @return_value = return_value
+    end
+  end
+
+  # You should never rescue this exception.  See StackUnwindException.
+  class RestartException < StackUnwindException
+    attr_reader :restart_receiver, :restart_args
+    def initialize(nonce, restart_receiver, restart_args)
+      super(nonce)
+      @restart_receiver = restart_receiver
+      @restart_args = restart_args
     end
   end
 
@@ -48,7 +68,7 @@ module SmokeSignals
     end
 
     def rescue(return_value=nil)
-      raise RollbackException.new(self.nonce, return_value)
+      raise RescueException.new(self.nonce, return_value)
     end
 
     def restart(name, *args)
@@ -84,7 +104,7 @@ module SmokeSignals
         self.handlers = orig_handlers + new_handlers.map {|entry| [entry,nonce] }.reverse
         begin
           block.call
-        rescue RollbackException => e
+        rescue RescueException => e
           if nonce.equal?(e.nonce)
             e.return_value
           else
@@ -122,9 +142,9 @@ module SmokeSignals
         self.restarts = orig_restarts + [[new_restarts,nonce]]
         begin
           block.call
-        rescue RollbackException => e
+        rescue RestartException => e
           if nonce.equal?(e.nonce)
-            e.return_value
+            e.restart_receiver.send(*e.restart_args)
           else
             raise e
           end
@@ -143,7 +163,7 @@ module SmokeSignals
                             fn ? [fn, [:call] + args] : nil
                           end
           next unless obj
-          raise RollbackException.new(nonce, obj.send(*all_args))
+          raise RestartException.new(nonce, obj, all_args)
         end
         raise NoRestartError.new(name)
       end

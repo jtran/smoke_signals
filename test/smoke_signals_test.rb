@@ -156,6 +156,22 @@ class SmokeSignalsTest < Test::Unit::TestCase
     end
   end
 
+  def test_restarting_executes_ensure_block_before_restart
+    a = []
+    r = C.handle(lambda {|c| C.restart(:use_value, 42) }) do
+      C.with_restarts(:use_value => lambda {|v| a << 2; v }) do
+        begin
+          C.new.signal
+          fail 'should be handled with a restart'
+        ensure
+          a << 1
+        end
+      end
+    end
+    assert_equal 42, r
+    assert_equal [1, 2], a
+  end
+
   def test_rescuing_from_nested_handlers
     a = []
     r = C.handle(C => lambda {|c| a << 3; c.rescue(42) }) do
