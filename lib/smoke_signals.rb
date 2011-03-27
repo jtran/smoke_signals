@@ -1,5 +1,7 @@
 class SmokeSignals
 
+  # This is raised by Condition#signal! if no handler rescues or
+  # restarts.
   class UnhandledSignalError < RuntimeError
     attr_accessor :condition
     def initialize(condition)
@@ -8,6 +10,8 @@ class SmokeSignals
     end
   end
 
+  # This is raised when a signal handler attempts to execute a restart
+  # that has not been established.
   class NoRestartError < RuntimeError
     attr_accessor :restart_name
     def initialize(restart_name)
@@ -18,10 +22,11 @@ class SmokeSignals
 
   # You should never rescue this exception or any of its subclasses in
   # normal usage.  If you do, you should re-raise it.  It is raised to
-  # unwind the stack and allow ensure blocks to execute as you would
+  # unwind the stack and allow +ensure+ blocks to execute as you would
   # expect.  Normally, you should not be rescuing Exception, anyway,
-  # without re-raising it.  A bare rescue only rescues StandardError,
-  # a subclass of Exception, which is probably what you want.
+  # without re-raising it.  A bare +rescue+ clause only rescues
+  # StandardError, a subclass of Exception, which is probably what you
+  # want.
   class StackUnwindException < Exception
     attr_reader :nonce
     def initialize(nonce)
@@ -49,32 +54,52 @@ class SmokeSignals
     end
   end
 
-  class Extensible
+  class Extensible #:nodoc:
     def metaclass
       class << self; self; end
     end
   end
 
+  # This is the base class for all conditions.
   class Condition
 
     attr_accessor :nonce
 
+    # Signals this Condition.
     def signal
       SmokeSignals.signal(self, false)
     end
 
+    # Signals this Condition.  If it is not rescued or restarted by a
+    # handler, UnhandledSignalError is raised.
     def signal!
       SmokeSignals.signal(self, true)
     end
 
+    # This should only be called from within a signal handler.  It
+    # unwinds the stack to the point where SmokeSignals::handle was
+    # called and returns from SmokeSignals::handle with the given
+    # return value.
     def rescue(return_value=nil)
       raise RescueException.new(self.nonce, return_value)
     end
 
+    # This should only be called from within a signal handler.  It
+    # unwinds the stack up to the point where
+    # SmokeSignals::with_restarts was called establishing the given
+    # restart, calls the restart with the given arguments, and returns
+    # the restart's return value from SmokeSignals::with_restarts.
     def restart(name, *args)
       SmokeSignals.restart(name, *args)
     end
 
+    # When a Condition is signaled, this method is called by the
+    # internals of SmokeSignals to determine whether it should be
+    # handled by a given handler.
+    #
+    # If you override this method in subclasses of Condition, return a
+    # Proc taking the Condition as an argument that should be run to
+    # handle the signal.  Return nil to ignore the signal.
     def handle_by(handler)
       if handler.is_a?(Proc)
         # No pattern given, so handler applies to everything.
@@ -97,6 +122,9 @@ class SmokeSignals
 
   class << self
 
+    # Establishes one or more signal handlers for the given block and
+    # executes it.  Returns either the return value of the block or
+    # the value passed to Condition#rescue in a handler.
     def handle(*new_handlers, &block)
       orig_handlers = handlers
       nonce = Object.new
@@ -131,6 +159,9 @@ class SmokeSignals
       raise UnhandledSignalError.new(c) if raise_unless_handled
     end
 
+    # Establishes one or more restarts for the given block and
+    # executes it.  Returns either the return value of the block or
+    # that of the restart if one was run.
     def with_restarts(extension, &block)
       orig_restarts = restarts
       nonce = Object.new
