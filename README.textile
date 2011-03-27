@@ -1,6 +1,6 @@
 h1. SmokeSignals
 
-SmokeSignals is an implementation of Lisp-style conditions and restarts as a Ruby library.  If you're unfamiliar with conditions and restarts, check out the chapter from "Practical Common Lisp":http://www.gigamonkeys.com/book/beyond-exception-handling-conditions-and-restarts.html.
+SmokeSignals is an implementation of Lisp-style conditions and restarts as a Ruby library.  Conditions and restarts make it easy to separate policy of error recovery from implementation of error recovery.  If you're unfamiliar with the concept, check out the chapter from "Practical Common Lisp":http://www.gigamonkeys.com/book/beyond-exception-handling-conditions-and-restarts.html.
 
 SmokeSignals is different because:
 
