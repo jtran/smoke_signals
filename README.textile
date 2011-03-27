@@ -159,7 +159,7 @@ This library is thread-safe because each thread has its own handlers and restart
 
 h2. Running Tests
 
-<pre><code>ruby test/smoke_signals_test.rb</code></pre>
+<pre><code>rake test</code></pre>
 
 h2. Special Thanks
 
