@@ -10,11 +10,17 @@ SmokeSignals is different because:
 * restarts can be established at any level in the call stack, not just where the condition is signaled
 * implementation of signaling, handling, and restarting is completely hidden. (The only possible exception to this is a design decision which allows @ensure@ blocks to work, making this usable with real side-effectful programs.)
 
+h2. Requirements
+
+Ruby 1.8.7 or 1.9.  No other gem dependencies.
+
 h2. Installation
 
-Gem coming soon, as soon as I stabilize the syntax.
+<pre><code>gem install smoke_signals</code></pre>
 
 h2. Usage
+
+<pre><code>require 'smoke_signals'</code></pre>
 
 In a low-level function, signal a condition.
 
@@ -148,10 +154,6 @@ Short answer: no, they're an extension.
 Long answer... As shown above, you can achieve all the functionality of exceptions with SmokeSignals.
 
 However, you're probably using some code that doesn't know about SmokeSignals and raises exceptions instead.  Setting a condition handler will not handle these raised exceptions.  They couldn't because in such a case, restarting would be impossible and rescuing would be a necessity.  By the time an exception is handled, the stack has already been unwound.
-
-h2. Requirements
-
-Ruby 1.8 or 1.9.  No other gem dependencies.
 
 h2. Thread Safety
 
