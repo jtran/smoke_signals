@@ -7,8 +7,8 @@ class SmokeSignalsTest < Test::Unit::TestCase
 
   def setup
     # This prevents brokenness in one test from affecting others.
-    Thread.current[:ConditionHandlers] = nil
-    Thread.current[:ConditionRestarts] = nil
+    Thread.current[:SmokeSignalsHandlers] = nil
+    Thread.current[:SmokeSignalsRestarts] = nil
   end
 
   def test_unhandled_signal_is_ignored

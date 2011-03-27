@@ -173,19 +173,19 @@ class SmokeSignals
     private
 
     def handlers
-      Thread.current[:ConditionHandlers] ||= []
+      Thread.current[:SmokeSignalsHandlers] ||= []
     end
 
     def handlers=(arr)
-      Thread.current[:ConditionHandlers] = arr
+      Thread.current[:SmokeSignalsHandlers] = arr
     end
 
     def restarts
-      Thread.current[:ConditionRestarts] ||= []
+      Thread.current[:SmokeSignalsRestarts] ||= []
     end
 
     def restarts=(arr)
-      Thread.current[:ConditionRestarts] = arr
+      Thread.current[:SmokeSignalsRestarts] = arr
     end
 
   end
