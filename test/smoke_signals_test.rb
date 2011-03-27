@@ -1,5 +1,4 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
-require 'tempfile'
 
 class SmokeSignalsTest < Test::Unit::TestCase
 
@@ -118,20 +117,15 @@ class SmokeSignalsTest < Test::Unit::TestCase
     file = nil
     r = S.handle(lambda {|c| a << 7; c.rescue(42) }) do
       begin
-        file = Tempfile.new('smoke_signals_test')
+        file = 'fake_file'
         C.new.signal
         fail 'should be handled with a rescue'
       ensure
-        file.close
+        file = 'closed'
       end
     end
     assert_equal 42, r
-    assert file.closed?
-  ensure
-    if file
-      file.close
-      file.unlink
-    end
+    assert_equal 'closed', file
   end
 
   def test_restarting_executes_ensure_block
@@ -140,21 +134,16 @@ class SmokeSignalsTest < Test::Unit::TestCase
     r = S.handle(lambda {|c| c.restart(:use_value, 42) }) do
       S.with_restarts(:use_value => lambda {|v| v }) do
         begin
-          file = Tempfile.new('smoke_signals_test')
+          file = 'fake_file'
           C.new.signal
           fail 'should be handled with a restart'
         ensure
-          file.close
+          file = 'closed'
         end
       end
     end
     assert_equal 42, r
-    assert file.closed?
-  ensure
-    if file
-      file.close
-      file.unlink
-    end
+    assert_equal 'closed', file
   end
 
   def test_restarting_executes_ensure_block_before_restart
