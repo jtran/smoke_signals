@@ -85,9 +85,10 @@ You can limit which kinds of conditions you handle by passing a hash to @handle@
 <pre><code>class MyCondition1 < SmokeSignals::Condition; end
 class MyCondition2 < SmokeSignals::Condition; end
 
-SmokeSignals.handle(MyCondition1 => lambda {|c| c.restart(:some_restart),
-                    MyCondition2 => lambda {|c| c.restart(:another_restart) }) do }) do
-  # Stuff that signals...
+SmokeSignals.handle(MyCondition1 => lambda {|c| c.restart(:some_restart) },
+                    MyCondition2 => lambda {|c| c.restart(:another_restart) }) do
+  MyCondition1.new.signal if some_condition?
+  MyCondition2.new.signal if another_condition?
 end
 </code></pre>
 
