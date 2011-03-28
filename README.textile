@@ -147,7 +147,7 @@ end
 
 If this function were called and restarted many times, and the stack were not unwound before each restart, then you would have many files open at once.  This is why SmokeSignals unwinds the stack before executing restarts, meaning that @ensure@ blocks are run before restarts.
 
-If you like, you can use @def@s to define restarts.  This allows you to use default arguments, etc.
+If you like, you can use <code>def</code>s to define restarts.  This allows you to use default arguments, etc.
 
 <pre><code>def parse_file(filename)
   SmokeSignals.with_restarts(lambda {
