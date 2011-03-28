@@ -91,8 +91,8 @@ You can limit which kinds of conditions you handle by passing a hash to @handle@
 <pre><code>class MyCondition1 < SmokeSignals::Condition; end
 class MyCondition2 < SmokeSignals::Condition; end
 
-SmokeSignals.handle(MyCondition1 => lambda {|c| c.restart(:some_restart) },
-                    MyCondition2 => lambda {|c| c.restart(:another_restart) }) do
+SmokeSignals.handle(MyCondition1 => lambda {|c| puts 'MyCondition1 signaled' },
+                    MyCondition2 => lambda {|c| puts 'MyCondition2 signaled' }) do
   MyCondition1.new.signal if some_condition?
   MyCondition2.new.signal if another_condition?
 end
@@ -146,6 +146,32 @@ end
 </code></pre>
 
 If this function were called and restarted many times, and the stack were not unwound before each restart, then you would have many files open at once.  This is why SmokeSignals unwinds the stack before executing restarts, meaning that @ensure@ blocks are run before restarts.
+
+If you like, you can use @def@s to define restarts.  This allows you to use default arguments, etc.
+
+<pre><code>def parse_file(filename)
+  SmokeSignals.with_restarts(lambda {
+                               def use_new_filename(f)
+                                 parse_file(f)
+                               end
+
+                               def log_and_abort(logger=Rails.logger)
+                                 logger.error("File could not be parsed: #{filename}")
+                                 # When called, this will return nil from parse_file.
+                                 nil
+                               end
+                             }) do
+    # Do stuff...
+  end
+end
+</code></pre>
+
+You can pass arguments to restarts the same way you would when calling @Object#send@.
+
+<pre><code>SmokeSignals.handle(lambda {|c| c.restart(:log_and_abort, Logger.new(STDOUT)) }) do
+  parse_file('foo.txt')
+end
+</code></pre>
 
 h3. Is SmokeSignals a replacement for Ruby exceptions?
 
