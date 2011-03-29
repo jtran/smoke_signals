@@ -30,7 +30,7 @@ class SmokeSignals
   class StackUnwindException < Exception
     attr_reader :nonce
     def initialize(nonce)
-      super("This exception is an implementation detail of SmokeSignals.  If you're seeing this, either there is a bug in SmokeSignals or you are rescuing a #{self.class} when you shouldn't be.  If you rescue this, you should re-raise it.")
+      super("This exception is an implementation detail of SmokeSignals.  If you're seeing this, either there is a bug in SmokeSignals or you are rescuing a SmokeSignals::StackUnwindException when you shouldn't be.  If you rescue this, you should re-raise it.")
       @nonce = nonce
     end
   end
