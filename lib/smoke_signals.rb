@@ -5,7 +5,7 @@ class SmokeSignals
   class UnhandledSignalError < RuntimeError
     attr_accessor :condition
     def initialize(condition)
-      super('condition was not rescued or restarted by any handlers')
+      super("condition was not rescued or restarted by any handlers: #{condition}")
       self.condition = condition
     end
   end
@@ -116,6 +116,10 @@ class SmokeSignals
                   end
         applies ? handler_fn : nil
       end
+    end
+
+    def to_s
+      self.class.to_s
     end
 
   end
