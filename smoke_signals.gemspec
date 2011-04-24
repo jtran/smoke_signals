@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.authors = ["Jonathan Tran"]
   s.homepage = "http://github.com/jtran/smoke_signals"
   s.summary = "Lisp-style conditions and restarts for Ruby"
-  s.description = "SmokeSignals makes it easy to separate policy of error recovery from implementation of error recovery."
+  s.description = "#{s.summary}. SmokeSignals makes it easy to separate policy of error recovery from implementation of error recovery."
   s.email = Base64.decode64("anRyYW5AYWx1bW5pLmNtdS5lZHU=\n")
   s.license = 'MIT'
 
