@@ -189,6 +189,12 @@ h2. Running Tests
 
 <pre><code>rake test</code></pre>
 
+h2. See Also
+
+* "Practical Common Lisp":http://www.gigamonkeys.com/book/beyond-exception-handling-conditions-and-restarts.html
+* "Exception Handling - Wikipedia":http://en.wikipedia.org/wiki/Exception_handling
+* "Common Lisp: A Tutorial on Conditions and Restarts":http://chaitanyagupta.com/lisp/restarts.html
+
 h2. Special Thanks
 
 This was inspired in part by "dynamic_vars":https://github.com/robdimarco/dynamic_vars, an implementation of thread-local dynamic bindings in Ruby!
