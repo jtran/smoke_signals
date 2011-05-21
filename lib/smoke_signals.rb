@@ -55,8 +55,24 @@ class SmokeSignals
   end
 
   class Extensible #:nodoc:
+    attr_accessor :user_module
+
+    def initialize(&extension)
+      m = Module.new(&extension)
+      self.metaclass.instance_eval { include m }
+      self.user_module = m
+    end
+
     def metaclass
       class << self; self; end
+    end
+
+    def extended_with?(name)
+      # In Ruby 1.8 instance_methods returns strings.  In 1.9,
+      # symbols.  We go to string to prevent unnecessary symbol
+      # generation.
+      methods = self.user_module.instance_methods(false)
+      methods.map(&:to_s).include?(name.to_s)
     end
   end
 
@@ -170,10 +186,11 @@ class SmokeSignals
       orig_restarts = restarts
       nonce = Object.new
       if extension.is_a?(Proc)
-        new_restarts = Extensible.new
-        new_restarts.metaclass.instance_eval { include Module.new(&extension) }
+        new_restarts = Extensible.new(&extension)
       else
-        new_restarts = extension
+        new_restarts = Extensible.new do
+          extension.each_pair {|name,fn| define_method(name, &fn) }
+        end
       end
 
       self.restarts = orig_restarts + [[new_restarts,nonce]]
@@ -191,18 +208,20 @@ class SmokeSignals
     end
 
     def restart(name, *args)
-      restarts.reverse_each do |restarts_obj, nonce|
-        obj, all_args = case restarts_obj
-                        when Extensible
-                          restarts_obj.respond_to?(name) ? [restarts_obj, [name] + args] : nil
-                        else
-                          fn = restarts_obj[name]
-                          fn ? [fn, [:call] + args] : nil
-                        end
-        next unless obj
-        raise RestartException.new(nonce, obj, all_args)
+      fn = find_restart(name)
+      if fn
+        fn.call(*args)
+      else
+        raise NoRestartError.new(name)
       end
-      raise NoRestartError.new(name)
+    end
+
+    def find_restart(name)
+      restarts.reverse_each do |extensible, nonce|
+        next unless extensible.extended_with?(name)
+        return lambda {|*args| raise RestartException.new(nonce, extensible, [name] + args) }
+      end
+      nil
     end
 
     private
